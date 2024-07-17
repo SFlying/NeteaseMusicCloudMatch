@@ -60,39 +60,81 @@ namespace NeteaseMusicCloudMatch
         private void LoadDgvColumns()
         {
             dataGridView1.RowHeadersVisible = false;
-            DataGridViewTextBoxColumn colListId = new DataGridViewTextBoxColumn();
-            colListId.Name = "colListId";
-            //colListId.Width = 40;
-            colListId.HeaderText = "#";
-            colListId.ReadOnly = true;
+            DataGridViewTextBoxColumn colListId = new DataGridViewTextBoxColumn
+            {
+                Name = "colListId",
+                //colListId.Width = 40;
+                HeaderText = "#",
+                ReadOnly = true
+            };
 
-            DataGridViewTextBoxColumn colSongId = new DataGridViewTextBoxColumn();
-            colSongId.Name = "colSongId";
-            //colSongId.Width = 80;
-            colSongId.HeaderText = "ID";
-            colSongId.ReadOnly = true;
+            DataGridViewTextBoxColumn colSongId = new DataGridViewTextBoxColumn
+            {
+                Name = "colSongId",
+                //colSongId.Width = 80;
+                HeaderText = "ID",
+                ReadOnly = true
+            };
 
-            DataGridViewTextBoxColumn colFileName = new DataGridViewTextBoxColumn();
-            colFileName.Name = "colFileName";
-            //colFileName.Width = 200;
-            colFileName.HeaderText = "文件名称";
-            colFileName.ReadOnly = true;
+            DataGridViewTextBoxColumn colFileName = new DataGridViewTextBoxColumn
+            {
+                Name = "colFileName",
+                //colFileName.Width = 200;
+                HeaderText = "文件名称",
+                ReadOnly = true
+            };
 
-            DataGridViewTextBoxColumn colFileSize = new DataGridViewTextBoxColumn();
-            colFileSize.Name = "colFileSize";
-            //colFileSize.Width = 68;
-            colFileSize.HeaderText = "大小";
-            colFileSize.ReadOnly = true;
+            DataGridViewTextBoxColumn colFileSize = new DataGridViewTextBoxColumn
+            {
+                Name = "colFileSize",
+                //colFileSize.Width = 68;
+                HeaderText = "大小",
+                ReadOnly = true
+            };
 
-            DataGridViewTextBoxColumn colAddTime = new DataGridViewTextBoxColumn();
-            colAddTime.Name = "colAddTime";
-            //colAddTime.Width = 130;
-            colAddTime.HeaderText = "上传时间";
-            colAddTime.ReadOnly = true;
+            DataGridViewTextBoxColumn colAddTime = new DataGridViewTextBoxColumn
+            {
+                Name = "colAddTime",
+                //colAddTime.Width = 130;
+                HeaderText = "上传时间",
+                ReadOnly = true
+            };
+
+            DataGridViewTextBoxColumn colTitle = new DataGridViewTextBoxColumn
+            {
+                Name = "colTitle",
+                //colAddTime.Width = 130;
+                HeaderText = "原标题",
+                ReadOnly = true
+            };
+
+            DataGridViewTextBoxColumn colAlbum = new DataGridViewTextBoxColumn
+            {
+                Name = "colAlbum",
+                //colAddTime.Width = 130;
+                HeaderText = "原专辑",
+                ReadOnly = true
+            };
+
+            DataGridViewTextBoxColumn colArtist = new DataGridViewTextBoxColumn
+            {
+                Name = "colArtist",
+                //colAddTime.Width = 130;
+                HeaderText = "原艺术家",
+                ReadOnly = true
+            };
+
+            DataGridViewTextBoxColumn colMatch = new DataGridViewTextBoxColumn
+            {
+                Name = "colMatch",
+                //colAddTime.Width = 130;
+                HeaderText = "已匹配",
+                ReadOnly = true
+            };
 
             dataGridView1.Columns.AddRange(
                 new DataGridViewColumn[] {
-                                    colListId, colSongId, colFileName, colFileSize, colAddTime
+                                    colListId, colSongId, colFileName, colFileSize, colAddTime, colTitle, colAlbum, colArtist, colMatch,
                 });
 
             dataGridView1.Columns[0].FillWeight = 5;
@@ -100,6 +142,10 @@ namespace NeteaseMusicCloudMatch
             dataGridView1.Columns[2].FillWeight = 30;
             dataGridView1.Columns[3].FillWeight = 10;
             dataGridView1.Columns[4].FillWeight = 20;
+            dataGridView1.Columns[5].FillWeight = 20;
+            dataGridView1.Columns[6].FillWeight = 20;
+            dataGridView1.Columns[7].FillWeight = 20;
+            dataGridView1.Columns[8].FillWeight = 20;
         }
         #endregion
 
@@ -310,6 +356,11 @@ namespace NeteaseMusicCloudMatch
                                 string fileName = j["fileName"]?.ToString();
                                 string fileSize = j["fileSize"]?.ToString();
                                 string addTime = j["addTime"]?.ToString();
+                                string title = j["songName"]?.ToString();
+                                string album = j["album"]?.ToString();
+                                string artist = j["artist"]?.ToString();
+                                JObject newSong = JObject.Parse(j["simpleSong"]?.ToString());
+                                bool match = newSong != null && newSong["s_id"]?.ToString() != songId;
                                 int index = 0;
                                 this.Invoke(new MethodInvoker(delegate ()
                                 {
@@ -319,6 +370,18 @@ namespace NeteaseMusicCloudMatch
                                     dataGridView1.Rows[index].Cells[2].Value = fileName;
                                     dataGridView1.Rows[index].Cells[3].Value = CommonHelper.GetFileSize(Convert.ToInt64(fileSize));
                                     dataGridView1.Rows[index].Cells[4].Value = CommonHelper.UnixTimestampToDateTime(addTime);
+                                    dataGridView1.Rows[index].Cells[5].Value = title;
+                                    dataGridView1.Rows[index].Cells[6].Value = album;
+                                    dataGridView1.Rows[index].Cells[7].Value = artist;
+                                    dataGridView1.Rows[index].Cells[8].Value = match;
+                                    if (match)
+                                    {
+                                        dataGridView1.Rows[index].DefaultCellStyle.BackColor = Color.LightGreen;
+                                    }
+                                    else
+                                    {
+                                        dataGridView1.Rows[index].DefaultCellStyle.BackColor = Color.LightYellow;
+                                    }
                                 }));
                             }
                         }
@@ -607,6 +670,21 @@ namespace NeteaseMusicCloudMatch
             return string.Empty;
         }
         #endregion
+
+        private void dataGridView1_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            //if (e.RowIndex >= 0 && e.ColumnIndex >= 0 && dataGridView1.Rows[e.RowIndex].Cells[8].Value is bool b && b == false)
+            //{
+            //    using (Brush gridBrush = new SolidBrush(Color.FromArgb(255, 255, 127)))
+            //    {
+            //        e.Graphics.FillRectangle(gridBrush, e.CellBounds);
+            //        e.Graphics.tex
+            //    }
+
+            //    // 防止默认绘制
+            //    e.Handled = true;
+            //}
+        }
 
         #region 匹配纠正
         private void button3_Click(object sender, EventArgs e)
