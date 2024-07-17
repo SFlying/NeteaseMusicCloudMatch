@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Linq;
+using System.Runtime.Remoting.Metadata.W3cXsd2001;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -59,93 +62,33 @@ namespace NeteaseMusicCloudMatch
         #region dataGridView1 加载标题
         private void LoadDgvColumns()
         {
+            List<(string, int, bool)> cols = new List<(string, int, bool)>
+            {
+                ("#", 5, true),
+                ("ID",15, true),
+                ("文件名称", 30, true),
+                ("大小", 10, true),
+                ("上传时间", 20, true),
+                ("原标题", 15, true),
+                ("原专辑", 10, true),
+                ("原艺术家", 10, true),
+                ("已匹配", 5, false),
+                ("新标题", 15, true),
+                ("新专辑", 10, true),
+                ("新艺术家", 10, true),
+            };
+
             dataGridView1.RowHeadersVisible = false;
-            DataGridViewTextBoxColumn colListId = new DataGridViewTextBoxColumn
+            dataGridView1.Columns.AddRange(cols.Select(a => new DataGridViewTextBoxColumn()
             {
-                Name = "colListId",
-                //colListId.Width = 40;
-                HeaderText = "#",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colSongId = new DataGridViewTextBoxColumn
+                HeaderText = a.Item1,
+                ReadOnly = true,
+                Visible = a.Item3,
+            }).ToArray());
+            for (int i = 0; i < dataGridView1.Columns.Count; i++)
             {
-                Name = "colSongId",
-                //colSongId.Width = 80;
-                HeaderText = "ID",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colFileName = new DataGridViewTextBoxColumn
-            {
-                Name = "colFileName",
-                //colFileName.Width = 200;
-                HeaderText = "文件名称",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colFileSize = new DataGridViewTextBoxColumn
-            {
-                Name = "colFileSize",
-                //colFileSize.Width = 68;
-                HeaderText = "大小",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colAddTime = new DataGridViewTextBoxColumn
-            {
-                Name = "colAddTime",
-                //colAddTime.Width = 130;
-                HeaderText = "上传时间",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colTitle = new DataGridViewTextBoxColumn
-            {
-                Name = "colTitle",
-                //colAddTime.Width = 130;
-                HeaderText = "原标题",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colAlbum = new DataGridViewTextBoxColumn
-            {
-                Name = "colAlbum",
-                //colAddTime.Width = 130;
-                HeaderText = "原专辑",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colArtist = new DataGridViewTextBoxColumn
-            {
-                Name = "colArtist",
-                //colAddTime.Width = 130;
-                HeaderText = "原艺术家",
-                ReadOnly = true
-            };
-
-            DataGridViewTextBoxColumn colMatch = new DataGridViewTextBoxColumn
-            {
-                Name = "colMatch",
-                //colAddTime.Width = 130;
-                HeaderText = "已匹配",
-                ReadOnly = true
-            };
-
-            dataGridView1.Columns.AddRange(
-                new DataGridViewColumn[] {
-                                    colListId, colSongId, colFileName, colFileSize, colAddTime, colTitle, colAlbum, colArtist, colMatch,
-                });
-
-            dataGridView1.Columns[0].FillWeight = 5;
-            dataGridView1.Columns[1].FillWeight = 15;
-            dataGridView1.Columns[2].FillWeight = 30;
-            dataGridView1.Columns[3].FillWeight = 10;
-            dataGridView1.Columns[4].FillWeight = 20;
-            dataGridView1.Columns[5].FillWeight = 20;
-            dataGridView1.Columns[6].FillWeight = 20;
-            dataGridView1.Columns[7].FillWeight = 20;
-            dataGridView1.Columns[8].FillWeight = 20;
+                dataGridView1.Columns[i].FillWeight = cols[i].Item2;
+            }
         }
         #endregion
 
@@ -359,8 +302,13 @@ namespace NeteaseMusicCloudMatch
                                 string title = j["songName"]?.ToString();
                                 string album = j["album"]?.ToString();
                                 string artist = j["artist"]?.ToString();
-                                JObject newSong = JObject.Parse(j["simpleSong"]?.ToString());
+                                JToken newSong = j["simpleSong"];
+                                var newAr = newSong["ar"].ToArray();
+                                JToken newAl = newSong["al"];
                                 bool match = newSong != null && newSong["s_id"]?.ToString() != songId;
+                                string artist2 = string.Join("/", newAr.Select(a => $"{a["name"]}"));
+                                string title2 = $"{newSong["name"]}";
+                                string album2 = $"{newAl["name"]}";
                                 int index = 0;
                                 this.Invoke(new MethodInvoker(delegate ()
                                 {
@@ -382,6 +330,9 @@ namespace NeteaseMusicCloudMatch
                                     {
                                         dataGridView1.Rows[index].DefaultCellStyle.BackColor = Color.LightYellow;
                                     }
+                                    dataGridView1.Rows[index].Cells[9].Value = title2;
+                                    dataGridView1.Rows[index].Cells[10].Value = album2;
+                                    dataGridView1.Rows[index].Cells[11].Value = artist2;
                                 }));
                             }
                         }
@@ -684,6 +635,108 @@ namespace NeteaseMusicCloudMatch
             //    // 防止默认绘制
             //    e.Handled = true;
             //}
+        }
+
+        private void bAutoMatch_Click(object sender, EventArgs e)
+        {
+            string queryUrl = "https://music.163.com/api/search/get/web?s={0}&type=1&offset=0&total=true&limit=20";
+            string matchUrl = "https://music.163.com/api/cloud/user/song/match?userId={0}&songId={1}&adjustSongId={2}";
+
+            int count;
+            bool force = false;
+            count = dataGridView1.SelectedRows.Count;
+            ICollection rows;
+            if (count <= 1)
+            {
+                int.TryParse(tRows.Text, out count);
+                rows = dataGridView1.Rows;
+            }
+            else
+            {
+                rows = dataGridView1.SelectedRows;
+                force = true;
+            }
+            if (count > 0)
+            {
+                foreach (DataGridViewRow row in rows)
+                {
+                    try
+                    {
+                        if (force || row.Cells[8].Value is bool b && !b)
+                        {
+                            var oid = $"{row.Cells[1].Value}";
+                            var otitle = $"{row.Cells[5].Value}";
+                            var oalbum = $"{row.Cells[6].Value}";
+                            var oartist = $"{row.Cells[7].Value}";
+                            var key = $"{otitle} {oalbum} {oartist}";
+                            var url = string.Format(queryUrl, key);
+                            string html = CommonHelper.GetHtml(url, wyCookie, url.Split('?').FirstOrDefault());
+                            if (CommonHelper.CheckJson(html))
+                            {
+                                var json = JObject.Parse(html);
+                                if (json["code"]?.ToString() == "200")
+                                {
+                                    var ret = json["result"];
+                                    if (int.TryParse(ret["songCount"].ToString(), out int cnt) && cnt == 1)
+                                    {
+                                        var song = ret["songs"].ToArray().FirstOrDefault();
+                                        var id = song["id"].ToString();
+                                        var artist = string.Join("/", song["artists"].ToArray().Select(a => a["name"]));
+                                        var album = song["album"]["name"];
+                                        if (!string.IsNullOrWhiteSpace(id) && id != oid)
+                                        {
+                                            html = CommonHelper.GetHtml(string.Format(matchUrl, userId, oid, id), wyCookie);
+                                            Console.WriteLine(html);
+                                            if (CommonHelper.CheckJson(html))
+                                            {
+                                                json = JObject.Parse(html);
+                                                if (json["code"]?.ToString() == "200")
+                                                {
+                                                    count--;
+                                                    if (count <= 0)
+                                                    {
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        foreach (var song in ret["songs"].ToArray())
+                                        {
+                                            var id = song["id"].ToString();
+                                            var artists = song["artists"].ToArray().Select(a => a["name"]);
+                                            var artist = string.Join("/", artists);
+                                            var album = song["album"]["name"].ToString();
+                                            var title = song["name"].ToString();
+                                            if (otitle == title && album == oalbum && artists.Contains(oartist) && !string.IsNullOrWhiteSpace(id) && id != oid)
+                                            {
+                                                html = CommonHelper.GetHtml(string.Format(matchUrl, userId, oid, id), wyCookie);
+                                                Console.WriteLine(html);
+                                                if (CommonHelper.CheckJson(html))
+                                                {
+                                                    json = JObject.Parse(html);
+                                                    if (json["code"]?.ToString() == "200")
+                                                    {
+                                                        count--;
+                                                        if (count <= 0)
+                                                        {
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                button2_Click(sender, null);
+            }
         }
 
         #region 匹配纠正

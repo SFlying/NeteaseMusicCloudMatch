@@ -27,7 +27,7 @@ namespace NeteaseMusicCloudMatch
         /// <param name="url"></param>
         /// <param name="cookie"></param>
         /// <returns></returns>
-        public static string GetHtml(string url, string cookie = "")
+        public static string GetHtml(string url, string cookie = "", string referer = null)
         {
             try
             {
@@ -38,7 +38,7 @@ namespace NeteaseMusicCloudMatch
                     Method = "get",
                     Cookie = cookie,
                     ContentType = "application/json;charset=UTF-8",
-                    Referer = url,
+                    Referer = referer ?? url,
                     ResultType = ResultType.String
                 };
                 item.Header.Add("x-from-src", RandomIp());
